@@ -15,10 +15,10 @@
 | Username   | Password     | Role              |
 |------------|--------------|-------------------|
 | admin      | (ask owner)  | Admin             |
-| msantos    | (ask owner)  | InventoryManager  |
-| jdelacruz  | (ask owner)  | InventoryClerk    |
-| areyes     | (ask owner)  | ProcurementStaff  |
-| cmendoza   | (ask owner)  | Auditor           |
+| jbravo     | (ask owner)  | InventoryManager  |
+| dphantom   | (ask owner)  | InventoryClerk    |
+| jhilarious | (ask owner)  | ProcurementStaff  |
+| bogsers12  | (ask owner)  | Auditor           |
 
 ---
 
