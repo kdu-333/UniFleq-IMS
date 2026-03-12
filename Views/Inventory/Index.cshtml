@@ -1,0 +1,177 @@
+@model UnifleqSolutions_IMS.ViewModels.InventoryViewModel
+@{
+    ViewData["Title"] = "Stock Monitor";
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-4">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:rgba(34,197,94,0.15)">
+                <i class="bi bi-box-seam" style="color:#22c55e"></i>
+            </div>
+            <div>
+                <div class="kpi-label" style="color:#22c55e;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-bottom:4px">INVENTORY VALUE</div>
+                <div style="color:#22c55e;font-size:20px;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:-0.5px;line-height:1.2">
+                    &#8369;@Model.TotalValue.ToString("N0")
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:rgba(245,158,11,0.15)">
+                <i class="bi bi-exclamation-triangle-fill" style="color:#f59e0b"></i>
+            </div>
+            <div>
+                <div class="kpi-label" style="color:#f59e0b;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-bottom:4px">LOW STOCK PRODUCTS</div>
+                <div style="color:#f59e0b;font-size:26px;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:-0.5px;line-height:1.2">@Model.LowStockCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:rgba(239,68,68,0.15)">
+                <i class="bi bi-x-circle-fill" style="color:#ef4444"></i>
+            </div>
+            <div>
+                <div class="kpi-label" style="color:#ef4444;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-bottom:4px">OUT OF STOCK</div>
+                <div style="color:#ef4444;font-size:26px;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:-0.5px;line-height:1.2">@Model.OutOfStockCount</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card-uni mb-3">
+    <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <div>
+            <label class="form-label-uni">Search</label>
+            <input type="text" name="search" value="@Model.SearchTerm"
+                   class="form-control-uni" placeholder="Product or brand..." style="width:220px">
+        </div>
+        <div>
+            <label class="form-label-uni">Category</label>
+            <select name="categoryId" class="form-select-uni" style="width:180px">
+                <option value="">All Categories</option>
+                @foreach (var cat in Model.Categories)
+                {
+                    if (Model.FilterCategory == cat.CategoryID.ToString())
+                    {
+                        <option value="@cat.CategoryID" selected="selected">@cat.CategoryName</option>
+                    }
+                    else
+                    {
+                        <option value="@cat.CategoryID">@cat.CategoryName</option>
+                    }
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label-uni">Stock Status</label>
+            <select name="stockStatus" class="form-select-uni" style="width:150px">
+                <option value="">All</option>
+                @if (Model.FilterStatus == "OK")
+                {
+                    <option value="OK" selected="selected">Healthy</option>
+                }
+                else
+                {
+                    <option value="OK">Healthy</option>
+                }
+                @if (Model.FilterStatus == "Low")
+                {
+                    <option value="Low" selected="selected">Low Stock</option>
+                }
+                else
+                {
+                    <option value="Low">Low Stock</option>
+                }
+                @if (Model.FilterStatus == "Out")
+                {
+                    <option value="Out" selected="selected">Out of Stock</option>
+                }
+                else
+                {
+                    <option value="Out">Out of Stock</option>
+                }
+            </select>
+        </div>
+        <button type="submit" class="btn-accent">
+            <i class="bi bi-funnel me-1"></i>Filter
+        </button>
+        <a href="@Url.Action("Index")" class="btn-ghost">Clear</a>
+    </form>
+</div>
+
+<div class="card-uni">
+    <div class="section-header">
+        <div class="section-title">Stock Levels</div>
+        <div style="display:flex;gap:8px">
+            <a href="@Url.Action("Valuation")" class="btn-ghost" style="font-size:12px">
+                <i class="bi bi-bar-chart-line me-1"></i>Valuation Report
+            </a>
+            <a href="@Url.Action("Index","StockAdjustment")" class="btn-accent" style="font-size:12px">
+                <i class="bi bi-arrow-left-right me-1"></i>Adjust Stock
+            </a>
+        </div>
+    </div>
+    <div style="overflow-x:auto">
+        <table class="table-uni">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Category</th>
+                    <th>In Stock</th>
+                    <th>Reorder At</th>
+                    <th>Unit Price</th>
+                    <th>Stock Value</th>
+                    <th>Status</th>
+                    <th>Last Updated</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Any())
+                {
+                    @foreach (var item in Model.Items)
+                    {
+                        string qtyBadge;
+                        if (item.StockStatus == "Out") { qtyBadge = "badge-danger"; }
+                        else if (item.StockStatus == "Low") { qtyBadge = "badge-warning"; }
+                        else { qtyBadge = "badge-success"; }
+
+                        string statusLabel;
+                        string statusBadge;
+                        if (item.StockStatus == "Out") { statusLabel = "Out of Stock"; statusBadge = "badge-danger"; }
+                        else if (item.StockStatus == "Low") { statusLabel = "Low Stock"; statusBadge = "badge-warning"; }
+                        else { statusLabel = "Healthy"; statusBadge = "badge-success"; }
+
+                        <tr>
+                            <td>
+                                <div style="font-weight:500">@item.ProductName</div>
+                                <div style="font-size:11px;color:var(--text-muted)">@item.Brand</div>
+                            </td>
+                            <td><span class="badge-uni badge-purple">@item.CategoryName</span></td>
+                            <td><span class="badge-uni @qtyBadge">@item.Quantity units</span></td>
+                            <td style="color:var(--text-muted)">
+                                @(item.ReorderLevel > 0 ? item.ReorderLevel.ToString() : "&#8212;")
+                            </td>
+                            <td>&#8369;@item.UnitPrice.ToString("N2")</td>
+                            <td style="font-weight:500">&#8369;@item.TotalValue.ToString("N2")</td>
+                            <td><span class="badge-uni @statusBadge">@statusLabel</span></td>
+                            <td style="color:var(--text-muted);font-size:12px">
+                                @item.LastUpdated.ToString("MMM dd, yyyy")
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="8" style="text-align:center;padding:48px;color:var(--text-muted)">
+                            No inventory records found.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

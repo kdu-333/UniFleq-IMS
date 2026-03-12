@@ -1,0 +1,60 @@
+@model UnifleqSolutions_IMS.ViewModels.UserCreateViewModel
+@{
+    ViewData["Title"] = "Add User";
+}
+
+<div class="section-header mb-4">
+    <div class="section-title">Add New User</div>
+    <a href="@Url.Action("Index")" class="btn-ghost"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+
+<div class="card-uni" style="max-width:540px">
+    <form method="post">
+        @Html.AntiForgeryToken()
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label-uni">Full Name *</label>
+                <input asp-for="FullName" class="form-control-uni" placeholder="e.g. Juan dela Cruz" required />
+                <span asp-validation-for="FullName" class="text-danger" style="font-size:12px"></span>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label-uni">Username *</label>
+                <input asp-for="Username" class="form-control-uni" placeholder="e.g. jdelacruz" required />
+                <span asp-validation-for="Username" class="text-danger" style="font-size:12px"></span>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label-uni">Role *</label>
+                <select asp-for="RoleID" class="form-select-uni" required>
+                    <option value="">-- Select Role --</option>
+                    @foreach (var r in Model.Roles)
+                    {
+                        <option value="@r.RoleID">@r.RoleName</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label-uni">Password *</label>
+                <input asp-for="Password" type="password" class="form-control-uni" placeholder="Min 8 characters" required />
+                <span asp-validation-for="Password" class="text-danger" style="font-size:12px"></span>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label-uni">Confirm Password *</label>
+                <input asp-for="ConfirmPassword" type="password" class="form-control-uni" required />
+                <span asp-validation-for="ConfirmPassword" class="text-danger" style="font-size:12px"></span>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label-uni">Status</label>
+                <select asp-for="Status" class="form-select-uni">
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                </select>
+            </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:24px">
+            <button type="submit" class="btn-accent"><i class="bi bi-person-plus me-1"></i>Create User</button>
+            <a href="@Url.Action("Index")" class="btn-ghost">Cancel</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts { @await Html.PartialAsync("_ValidationScriptsPartial") }

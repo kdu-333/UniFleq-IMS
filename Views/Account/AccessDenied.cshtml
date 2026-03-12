@@ -1,0 +1,15 @@
+@{
+    ViewData["Title"] = "Access Denied";
+}
+
+<div style="display:flex;align-items:center;justify-content:center;min-height:60vh;flex-direction:column;gap:16px;text-align:center">
+    <div style="font-size:64px">🔒</div>
+    <div class="section-title" style="font-size:24px">Access Denied</div>
+    <div style="color:var(--text-muted);max-width:400px">
+        You don't have permission to access this page.
+        Contact your system administrator if you believe this is an error.
+    </div>
+    <a href="@Url.Action("Index","Dashboard")" class="btn-accent" style="margin-top:8px">
+        <i class="bi bi-house me-1"></i>Back to Dashboard
+    </a>
+</div>

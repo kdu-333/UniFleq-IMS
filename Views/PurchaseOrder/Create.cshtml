@@ -1,0 +1,96 @@
+﻿@model UnifleqSolutions_IMS.ViewModels.PurchaseOrderCreateViewModel
+@{
+    ViewData["Title"] = "New Purchase Order";
+}
+
+<div class="section-header mb-4">
+    <div class="section-title">New Purchase Order</div>
+    <a href="@Url.Action("Index")" class="btn-ghost">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+</div>
+
+<div class="card-uni" style="max-width:800px">
+    <form method="post" action="/PurchaseOrder/Create">
+        @Html.AntiForgeryToken()
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label class="form-label-uni">Supplier *</label>
+                <select name="SupplierID" class="form-select-uni" required>
+                    <option value="">-- Select Supplier --</option>
+                    @foreach (var s in Model.Suppliers)
+                    {
+                        <option value="@s.SupplierID">@s.SupplierName</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div style="font-weight:600;margin-bottom:10px">Line Items</div>
+
+        <div id="lineItems">
+            <div class="row g-2 mb-2 line-item">
+                <div class="col-md-5">
+                    <select name="Items[0].ProductID" class="form-select-uni">
+                        <option value="">-- Select Product --</option>
+                        @foreach (var p in Model.Products)
+                        {
+                            <option value="@p.ProductID">@p.ProductName (@p.Category?.CategoryName)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <input type="number" name="Items[0].Quantity"
+                           class="form-control-uni" placeholder="Qty" min="1" />
+                </div>
+                <div class="col-md-3">
+                    <input type="number" name="Items[0].UnitCost"
+                           class="form-control-uni" placeholder="Unit Cost" step="0.01" min="0.01" />
+                </div>
+            </div>
+        </div>
+
+        <button type="button" class="btn-ghost mt-2" onclick="addLine()">
+            <i class="bi bi-plus-lg me-1"></i>Add Line Item
+        </button>
+
+        <div style="display:flex;gap:10px;margin-top:24px">
+            <button type="submit" class="btn-accent">
+                <i class="bi bi-floppy me-1"></i>Create Purchase Order
+            </button>
+            <a href="@Url.Action("Index")" class="btn-ghost">Cancel</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        var lineCount = 1;
+        var products = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+        Model.Products.Select(p => new
+        {
+          id = p.ProductID,
+          name = p.ProductName + " (" + (p.Category != null ? p.Category.CategoryName : "") + ")"
+        })
+    ));
+
+        function addLine() {
+            var options = '<option value="">-- Select Product --</option>';
+            products.forEach(function(p) {
+                options += '<option value="' + p.id + '">' + p.name + '</option>';
+            });
+
+            var html =
+                '<div class="row g-2 mb-2 line-item">' +
+                '<div class="col-md-5"><select name="Items[' + lineCount + '].ProductID" class="form-select-uni">' + options + '</select></div>' +
+                '<div class="col-md-3"><input type="number" name="Items[' + lineCount + '].Quantity" class="form-control-uni" placeholder="Qty" min="1" /></div>' +
+                '<div class="col-md-3"><input type="number" name="Items[' + lineCount + '].UnitCost" class="form-control-uni" placeholder="Unit Cost" step="0.01" min="0.01" /></div>' +
+                '<div class="col-md-1"><button type="button" class="btn-ghost" onclick="this.closest(\'.line-item\').remove()"><i class="bi bi-trash"></i></button></div>' +
+                '</div>';
+
+            document.getElementById('lineItems').insertAdjacentHTML('beforeend', html);
+            lineCount++;
+        }
+    </script>
+}

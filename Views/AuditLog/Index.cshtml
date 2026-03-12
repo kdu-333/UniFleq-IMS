@@ -1,0 +1,168 @@
+@model UnifleqSolutions_IMS.ViewModels.AuditLogViewModel
+@{
+    ViewData["Title"] = "Audit Logs";
+}
+
+<div class="section-header mb-4">
+    <div>
+        <div class="section-title">Audit Logs</div>
+        <div style="color:var(--text-muted);font-size:12px;margin-top:4px">
+            System activity trail — showing up to 200 most recent records
+        </div>
+    </div>
+    <button onclick="exportExcel()" class="btn-ghost" style="font-size:13px">
+        <i class="bi bi-file-earmark-excel me-1" style="color:#22c55e"></i> Export Excel
+    </button>
+</div>
+
+<div class="card-uni mb-3">
+    <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <div>
+            <label class="form-label-uni">User</label>
+            <select name="userId" class="form-select-uni" style="width:180px">
+                <option value="">All Users</option>
+                @foreach (var u in Model.Users)
+                {
+                    if (Model.FilterUser == u.UserID)
+                    {
+                        <option value="@u.UserID" selected="selected">@u.FullName</option>
+                    }
+                    else
+                    {
+                        <option value="@u.UserID">@u.FullName</option>
+                    }
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label-uni">Action Contains</label>
+            <input type="text" name="search" class="form-control-uni" style="width:180px"
+                   value="@Model.SearchAction" placeholder="e.g. Login">
+        </div>
+        <div>
+            <label class="form-label-uni">From</label>
+            <input type="date" name="from" class="form-control-uni" style="width:150px"
+                   value="@Model.DateFrom?.ToString("yyyy-MM-dd")">
+        </div>
+        <div>
+            <label class="form-label-uni">To</label>
+            <input type="date" name="to" class="form-control-uni" style="width:150px"
+                   value="@Model.DateTo?.ToString("yyyy-MM-dd")">
+        </div>
+        <button type="submit" class="btn-accent">
+            <i class="bi bi-funnel me-1"></i>Filter
+        </button>
+        <a href="@Url.Action("Index")" class="btn-ghost">Clear</a>
+    </form>
+</div>
+
+<div class="card-uni">
+    <div class="section-header">
+        <div class="section-title">@Model.Logs.Count Records</div>
+    </div>
+    <div style="overflow-x:auto">
+        <table class="table-uni" id="auditTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Details</th>
+                    <th>Date &amp; Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Logs.Any())
+                {
+                    @foreach (var log in Model.Logs)
+                    {
+                        string actionBadge;
+                        if (log.Action.StartsWith("Login") || log.Action.StartsWith("Logout"))
+                        {
+                            actionBadge = "badge-info";
+                        }
+                        else if (log.Action.StartsWith("Delete"))
+                        {
+                            actionBadge = "badge-danger";
+                        }
+                        else if (log.Action.StartsWith("Create"))
+                        {
+                            actionBadge = "badge-success";
+                        }
+                        else
+                        {
+                            actionBadge = "badge-muted";
+                        }
+
+                        string logDetails = string.IsNullOrEmpty(log.Details) ? "—" : log.Details;
+
+                        <tr>
+                            <td style="color:var(--text-muted);font-size:12px">#@log.LogID</td>
+                            <td style="font-weight:500">@log.User?.FullName</td>
+                            <td><span class="badge-uni @actionBadge">@log.Action</span></td>
+                            <td style="color:var(--text-secondary);font-size:12px;max-width:300px">@logDetails</td>
+                            <td style="color:var(--text-muted);font-size:12px">
+                                @log.LogDate.ToString("MMM dd, yyyy HH:mm:ss")
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="5" style="text-align:center;padding:48px;color:var(--text-muted)">
+                            No audit log entries found.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        function exportExcel() {
+            const wb   = XLSX.utils.book_new();
+            const rows = [];
+
+            // Title rows
+            rows.push(["UniFleq IMS — Audit Log Report"]);
+            rows.push(["Generated: " + new Date().toLocaleString()]);
+            rows.push([]);
+
+            // Header
+            rows.push(["Log ID", "User", "Action", "Details", "Date & Time"]);
+
+            // Data rows
+            document.querySelectorAll('#auditTable tbody tr').forEach(function(tr) {
+                const tds = tr.querySelectorAll('td');
+                if (tds.length < 5) return;
+                rows.push([
+                    tds[0]?.innerText.trim().replace('#', '') || '',
+                    tds[1]?.innerText.trim() || '',
+                    tds[2]?.innerText.trim() || '',
+                    tds[3]?.innerText.trim() || '',
+                    tds[4]?.innerText.trim() || ''
+                ]);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+
+            // Column widths
+            ws['!cols'] = [
+                { wch: 8  }, // Log ID
+                { wch: 22 }, // User
+                { wch: 20 }, // Action
+                { wch: 50 }, // Details
+                { wch: 22 }  // Date & Time
+            ];
+
+            XLSX.utils.book_append_sheet(wb, ws, "Audit Logs");
+
+            const fileName = "UniFleq_AuditLog_" + new Date().toISOString().slice(0, 10) + ".xlsx";
+            XLSX.writeFile(wb, fileName);
+        }
+    </script>
+}

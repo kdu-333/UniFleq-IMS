@@ -1,0 +1,120 @@
+@model UnifleqSolutions_IMS.ViewModels.StockTransactionViewModel
+@{
+    ViewData["Title"] = "Transaction History";
+}
+
+<div class="section-header mb-4">
+    <div>
+        <div class="section-title">Stock Transaction History</div>
+        <div style="color:var(--text-muted);font-size:12px;margin-top:4px">All stock-in, stock-out, and adjustment records</div>
+    </div>
+    <a href="@Url.Action("Index","StockAdjustment")" class="btn-accent">
+        <i class="bi bi-arrow-left-right me-1"></i>New Adjustment
+    </a>
+</div>
+
+<div class="card-uni mb-3">
+    <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <div>
+            <label class="form-label-uni">Type</label>
+            <select name="type" class="form-select-uni" style="width:160px">
+                <option value="">All Types</option>
+                @foreach (var t in new[] { "Stock-In", "Stock-Out", "Adjustment-In", "Adjustment-Out" })
+                {
+                    if (Model.FilterType == t)
+                    {
+                        <option value="@t" selected="selected">@t</option>
+                    }
+                    else
+                    {
+                        <option value="@t">@t</option>
+                    }
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label-uni">Product</label>
+            <select name="productId" class="form-select-uni" style="width:200px">
+                <option value="">All Products</option>
+                @foreach (var p in Model.Products)
+                {
+                    if (Model.FilterProduct == p.ProductID)
+                    {
+                        <option value="@p.ProductID" selected="selected">@p.ProductName</option>
+                    }
+                    else
+                    {
+                        <option value="@p.ProductID">@p.ProductName</option>
+                    }
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label-uni">Date From</label>
+            <input type="date" name="from" class="form-control-uni" style="width:150px"
+                   value="@Model.DateFrom?.ToString("yyyy-MM-dd")">
+        </div>
+        <div>
+            <label class="form-label-uni">Date To</label>
+            <input type="date" name="to" class="form-control-uni" style="width:150px"
+                   value="@Model.DateTo?.ToString("yyyy-MM-dd")">
+        </div>
+        <button type="submit" class="btn-accent"><i class="bi bi-funnel me-1"></i>Filter</button>
+        <a href="@Url.Action("History")" class="btn-ghost">Clear</a>
+    </form>
+</div>
+
+<div class="card-uni">
+    <div class="section-header">
+        <div class="section-title">Results (@Model.Transactions.Count records)</div>
+    </div>
+    <div style="overflow-x:auto">
+        <table class="table-uni">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Product</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Notes</th>
+                    <th>Performed By</th>
+                    <th>Date &amp; Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Transactions.Any())
+                {
+                    @foreach (var tx in Model.Transactions)
+                    {
+                        string txBadge;
+                        if (tx.TransactionType == "Stock-In") { txBadge = "badge-success"; }
+                        else if (tx.TransactionType == "Stock-Out") { txBadge = "badge-danger"; }
+                        else if (tx.TransactionType == "Adjustment-In") { txBadge = "badge-info"; }
+                        else if (tx.TransactionType == "Adjustment-Out") { txBadge = "badge-warning"; }
+                        else { txBadge = "badge-muted"; }
+
+                        <tr>
+                            <td style="color:var(--text-muted);font-size:12px">#@tx.TransactionID</td>
+                            <td style="font-weight:500">@tx.Product?.ProductName</td>
+                            <td><span class="badge-uni @txBadge">@tx.TransactionType</span></td>
+                            <td>@tx.Quantity</td>
+                            <td style="color:var(--text-secondary);max-width:200px">@(tx.Notes ?? "&#8212;")</td>
+                            <td style="color:var(--text-secondary)">@tx.User?.FullName</td>
+                            <td style="color:var(--text-muted);font-size:12px">
+                                @tx.TransactionDate.ToString("MMM dd, yyyy HH:mm")
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="7" style="text-align:center;padding:48px;color:var(--text-muted)">
+                            No transactions found for the selected filters.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

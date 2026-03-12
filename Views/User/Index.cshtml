@@ -1,0 +1,99 @@
+@model UnifleqSolutions_IMS.ViewModels.UserViewModel
+@{
+    ViewData["Title"] = "User Accounts";
+}
+
+<div class="section-header mb-4">
+    <div>
+        <div class="section-title">User Accounts</div>
+        <div style="color:var(--text-muted);font-size:12px;margin-top:4px">Manage system users and their roles</div>
+    </div>
+    <a href="@Url.Action("Create")" class="btn-accent">
+        <i class="bi bi-person-plus-fill me-1"></i>Add User
+    </a>
+</div>
+
+<div class="card-uni">
+    <div style="overflow-x:auto">
+        <table class="table-uni">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var u in Model.Users)
+                {
+                    var roleBadge = u.Role?.RoleName switch {
+                        "Admin"            => "badge-danger",
+                        "InventoryManager" => "badge-info",
+                        "ProcurementStaff" => "badge-warning",
+                        "Auditor"          => "badge-muted",
+                        _                  => "badge-purple"
+                    };
+                    <tr id="user-@u.UserID">
+                        <td>
+                            <div style="display:flex;align-items:center;gap:10px">
+                                <div class="user-avatar" style="width:32px;height:32px;font-size:12px">
+                                    @u.FullName.Substring(0,1).ToUpper()
+                                </div>
+                                <div style="font-weight:500">@u.FullName</div>
+                            </div>
+                        </td>
+                        <td style="color:var(--text-secondary)">@u.Username</td>
+                        <td><span class="badge-uni @roleBadge">@(u.Role?.RoleName ?? "—")</span></td>
+                        <td>
+                            <span class="badge-uni @(u.Status=="Active"?"badge-success":"badge-muted")" id="status-@u.UserID">
+                                @u.Status
+                            </span>
+                        </td>
+                        <td style="color:var(--text-muted);font-size:12px">@u.CreatedAt.ToString("MMM dd, yyyy")</td>
+                        <td>
+                            <div style="display:flex;gap:6px">
+                                <a href="@Url.Action("Edit",new{id=u.UserID})"
+                                   class="btn-ghost" style="font-size:12px;padding:5px 10px">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                @if (u.Username != User.Identity?.Name)
+                                {
+                                    <button onclick="toggleStatus(@u.UserID)"
+                                            class="btn-ghost" style="font-size:12px;padding:5px 10px"
+                                            title="Toggle Active/Inactive">
+                                        <i class="bi bi-toggle-on"></i>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    async function toggleStatus(id) {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                   || document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1];
+
+        const fd = new FormData();
+        fd.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]')?.value || '');
+
+        const res  = await fetch(`/User/ToggleStatus/${id}`, { method: 'POST', body: fd });
+        const data = await res.json();
+
+        if (data.success) {
+            const badge = document.getElementById('status-' + id);
+            badge.textContent = data.newStatus;
+            badge.className   = 'badge-uni ' + (data.newStatus === 'Active' ? 'badge-success' : 'badge-muted');
+            showToast(`User status set to ${data.newStatus}`);
+        }
+    }
+</script>
+}

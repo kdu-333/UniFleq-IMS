@@ -1,0 +1,379 @@
+@model UnifleqSolutions_IMS.ViewModels.StockAdjustmentViewModel
+@{
+    ViewData["Title"] = "Stock Adjustment";
+}
+
+<div class="section-header mb-4">
+    <div>
+        <div class="section-title">Stock Adjustment</div>
+        <div style="color:var(--text-muted);font-size:12px;margin-top:4px">
+            Record stock-in, stock-out, and manual adjustments
+        </div>
+    </div>
+    <a href="@Url.Action("History","StockAdjustment")" class="btn-ghost">
+        <i class="bi bi-clock-history me-1"></i> View History
+    </a>
+</div>
+
+<div class="row g-3">
+    <!-- ── Adjustment Form ──────────────────────────────── -->
+    <div class="col-lg-4">
+        <div class="card-uni">
+            <div class="section-title mb-4">Record Adjustment</div>
+
+            <form id="adjustForm">
+                @Html.AntiForgeryToken()
+
+                <div class="mb-3">
+                    <label class="form-label-uni">Product *</label>
+                    <select id="adj_productId" class="form-select-uni" required>
+                        <option value="">-- Select Product --</option>
+                        @foreach (var p in Model.Products)
+                        {
+                            var qty = p.Inventory?.Quantity ?? 0;
+                            <option value="@p.ProductID" data-qty="@qty" data-reorder="@(p.ReorderLevel ?? 0)">
+                                @p.ProductName (@p.Category?.CategoryName) – @qty in stock
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <!-- Current stock indicator -->
+                <div id="stockIndicator" style="display:none;margin-bottom:16px;
+                     padding:12px;background:var(--bg-main);border-radius:var(--radius-sm);border:1px solid var(--border-color)">
+                    <div style="font-size:12px;color:var(--text-muted)">Current Stock</div>
+                    <div id="currentQtyDisplay" style="font-family:var(--font-display);font-size:24px;font-weight:700"></div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label-uni">Transaction Type *</label>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                        @foreach (var t in new[] {
+                            ("Stock-In","bi-arrow-down-circle-fill","badge-success","#22c55e"),
+                            ("Stock-Out","bi-arrow-up-circle-fill","badge-danger","#ef4444"),
+                            ("Adjustment-In","bi-plus-circle-fill","badge-info","#38bdf8"),
+                            ("Adjustment-Out","bi-dash-circle-fill","badge-warning","#f59e0b")
+                        })
+                        {
+                            <label style="display:flex;align-items:center;gap:8px;padding:10px;
+                                         border:1px solid var(--border-color);border-radius:var(--radius-sm);
+                                         cursor:pointer;transition:all 0.15s" class="type-option">
+                                <input type="radio" name="transactionType" value="@t.Item1"
+                                       style="accent-color:@t.Item4"
+                                       @(t.Item1 == "Stock-In" ? "checked" : "")>
+                                <i class="bi @t.Item2" style="color:@t.Item4"></i>
+                                <span style="font-size:12px;font-weight:500">@t.Item1</span>
+                            </label>
+                        }
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label-uni">Quantity *</label>
+                    <input type="number" id="adj_quantity" class="form-control-uni"
+                           placeholder="Enter quantity" min="1" required />
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label-uni">Notes</label>
+                    <textarea id="adj_notes" class="form-control-uni" rows="2"
+                              placeholder="Reason or reference..."></textarea>
+                </div>
+
+                <button type="submit" class="btn-accent" style="width:100%" id="adjustBtn">
+                    <i class="bi bi-check2-circle me-1"></i>Apply Adjustment
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Products Table ──────────────────────────────── -->
+    <div class="col-lg-8">
+        <div class="card-uni">
+            <div class="section-header">
+                <div class="section-title">Current Inventory</div>
+                @if (User.IsInRole("Admin") || User.IsInRole("InventoryManager"))
+                {
+                    <button class="btn-accent" onclick="openModal('addProductModal')">
+                        <i class="bi bi-plus-lg me-1"></i> Add Product
+                    </button>
+                }
+            </div>
+
+            <input type="text" id="searchInput" class="form-control-uni mb-3"
+                   placeholder="Search products..." style="max-width:280px" oninput="filterRows()">
+
+            <div style="overflow-x:auto">
+                <table class="table-uni" id="productsTable">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Category</th>
+                            <th>In Stock</th>
+                            <th>Reorder</th>
+                            <th>Unit Price</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTbody">
+                        @if (Model.Products.Any())
+                        {
+                            @foreach (var p in Model.Products)
+                            {
+                                var qty     = p.Inventory?.Quantity ?? 0;
+                                var reorder = p.ReorderLevel ?? 0;
+                                var stockBadge = qty == 0 ? "badge-danger"
+                                               : (reorder > 0 && qty <= reorder ? "badge-warning" : "badge-success");
+
+                                <tr id="prodRow-@p.ProductID" data-name="@p.ProductName.ToLower()">
+                                    <td>
+                                        <div style="font-weight:500">@p.ProductName</div>
+                                        <div style="font-size:11px;color:var(--text-muted)">@(p.Brand ?? "")</div>
+                                    </td>
+                                    <td><span class="badge-uni badge-purple">@(p.Category?.CategoryName ?? "—")</span></td>
+                                    <td>
+                                        <span id="qty-@p.ProductID" class="badge-uni @stockBadge">@qty units</span>
+                                    </td>
+                                    <td style="color:var(--text-muted)">@(reorder > 0 ? reorder.ToString() : "—")</td>
+                                    <td>₱@p.UnitPrice.ToString("N2")</td>
+                                    <td>
+                                        <span class="badge-uni @(p.Status == "Available" ? "badge-success" : "badge-muted")">
+                                            @p.Status
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">
+                                No products found. Add products first.
+                            </td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Add Product Modal (reused from ProductController) ── -->
+@if (User.IsInRole("Admin") || User.IsInRole("InventoryManager"))
+{
+<div id="addProductModal" style="display:none;position:fixed;inset:0;z-index:1000;
+     background:rgba(0,0,0,0.7);align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+    <div style="background:var(--bg-card);border:1px solid var(--border-color);
+                border-radius:16px;padding:32px;width:100%;max-width:540px;box-shadow:var(--shadow);margin:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+            <div class="section-title">Add New Product</div>
+            <button onclick="closeModal('addProductModal')"
+                    style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <form id="productForm" method="post" action="@Url.Action("Create","Product")">
+            @Html.AntiForgeryToken()
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label-uni">Product Name *</label>
+                    <input asp-for="NewProduct.ProductName" class="form-control-uni" placeholder="Product name" required />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label-uni">Brand</label>
+                    <input asp-for="NewProduct.Brand" class="form-control-uni" placeholder="Brand" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label-uni">Category *</label>
+                    <select asp-for="NewProduct.CategoryID" class="form-select-uni" required>
+                        <option value="">-- Select --</option>
+                        @foreach (var cat in Model.Categories)
+                        {
+                            <option value="@cat.CategoryID">@cat.CategoryName</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label-uni">Unit Price (₱) *</label>
+                    <input asp-for="NewProduct.UnitPrice" type="number" step="0.01" min="0.01"
+                           class="form-control-uni" placeholder="0.00" required />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label-uni">Reorder Level</label>
+                    <input asp-for="NewProduct.ReorderLevel" type="number" min="0" class="form-control-uni" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label-uni">Status</label>
+                    <select asp-for="NewProduct.Status" class="form-select-uni">
+                        <option value="Available">Available</option>
+                        <option value="Discontinued">Discontinued</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:24px">
+                <button type="button" onclick="closeModal('addProductModal')" class="btn-ghost">Cancel</button>
+                <button type="submit" class="btn-accent" id="saveProductBtn">
+                    <i class="bi bi-floppy me-1"></i>Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+}
+
+@section Scripts {
+<script>
+    function openModal(id)  { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    // ── Stock Indicator ───────────────────────────────────
+    const productSelect = document.getElementById('adj_productId');
+    productSelect?.addEventListener('change', function() {
+        const opt = this.options[this.selectedIndex];
+        const qty = parseInt(opt.dataset.qty || '0');
+        const indicator = document.getElementById('stockIndicator');
+        const display   = document.getElementById('currentQtyDisplay');
+
+        if (this.value) {
+            indicator.style.display = 'block';
+            display.textContent = qty + ' units';
+            display.style.color = qty === 0 ? '#ef4444' : qty <= parseInt(opt.dataset.reorder || '0') ? '#f59e0b' : '#22c55e';
+        } else {
+            indicator.style.display = 'none';
+        }
+    });
+
+    // ── Highlight selected type option ────────────────────
+    document.querySelectorAll('.type-option input[type=radio]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            document.querySelectorAll('.type-option').forEach(l => {
+                l.style.borderColor = 'var(--border-color)';
+                l.style.background  = 'transparent';
+            });
+            this.closest('.type-option').style.borderColor = 'var(--accent)';
+            this.closest('.type-option').style.background  = 'var(--accent-glow)';
+        });
+    });
+    // Set initial highlight
+    document.querySelector('.type-option input[type=radio]:checked')?.dispatchEvent(new Event('change'));
+
+    // ── Submit Adjustment AJAX ────────────────────────────
+    document.getElementById('adjustForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const productID = document.getElementById('adj_productId').value;
+        const txType    = document.querySelector('input[name="transactionType"]:checked')?.value;
+        const quantity  = parseInt(document.getElementById('adj_quantity').value);
+        const notes     = document.getElementById('adj_notes').value;
+        const btn       = document.getElementById('adjustBtn');
+
+        if (!productID || !txType || !quantity) {
+            showToast('Please fill in all required fields.', 'danger');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Processing...';
+
+        const fd = new FormData();
+        fd.append('ProductID',       productID);
+        fd.append('TransactionType', txType);
+        fd.append('Quantity',        quantity);
+        fd.append('Notes',           notes);
+
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        fd.append('__RequestVerificationToken', token);
+
+        try {
+            const res = await fetch('@Url.Action("Adjust","StockAdjustment")', {
+                method: 'POST', body: fd
+            });
+
+            if (!res.ok) {
+                const err = await res.text();
+                showToast(err || 'Adjustment failed.', 'danger');
+                return;
+            }
+
+            const data = await res.json();
+
+            // Update qty badge in table
+            const qtyBadge = document.getElementById('qty-' + productID);
+            if (qtyBadge) {
+                qtyBadge.textContent = data.newQuantity + ' units';
+                qtyBadge.className = 'badge-uni ' + (data.newQuantity === 0 ? 'badge-danger' : 'badge-success');
+            }
+
+            // Update current qty display
+            const display = document.getElementById('currentQtyDisplay');
+            if (display) display.textContent = data.newQuantity + ' units';
+
+            // Update the dropdown option data-qty
+            const opt = productSelect.querySelector(`option[value="${productID}"]`);
+            if (opt) {
+                opt.dataset.qty = data.newQuantity;
+                opt.textContent = opt.textContent.replace(/– \d+ in stock/, `– ${data.newQuantity} in stock`);
+            }
+
+            document.getElementById('adj_quantity').value = '';
+            document.getElementById('adj_notes').value    = '';
+
+            showToast(`✓ ${txType}: ${quantity} unit(s) of "${data.productName}". New stock: ${data.newQuantity}`);
+
+        } catch (err) {
+            showToast('Network error. Try again.', 'danger');
+            console.error(err);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Apply Adjustment';
+        }
+    });
+
+    // ── Add Product AJAX ──────────────────────────────────
+    document.getElementById('productForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const fd  = new FormData(this);
+        const btn = document.getElementById('saveProductBtn');
+        btn.disabled = true;
+
+        const res  = await fetch(this.action, { method: 'POST', body: fd });
+        const data = await res.json();
+
+        if (data.productID) {
+            const tbody = document.getElementById('productsTbody');
+            const tr = document.createElement('tr');
+            tr.id = 'prodRow-' + data.productID;
+            tr.dataset.name = data.productName.toLowerCase();
+            tr.innerHTML = `
+                <td><div style="font-weight:500">${data.productName}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">${data.brand || ''}</div></td>
+                <td><span class="badge-uni badge-purple">${data.categoryName || '—'}</span></td>
+                <td><span id="qty-${data.productID}" class="badge-uni badge-success">0 units</span></td>
+                <td style="color:var(--text-muted)">${data.reorderLevel || '—'}</td>
+                <td>₱${parseFloat(data.unitPrice).toFixed(2)}</td>
+                <td><span class="badge-uni badge-success">${data.status}</span></td>`;
+            tbody.prepend(tr);
+
+            // Also add to adjustment dropdown
+            const opt = document.createElement('option');
+            opt.value = data.productID;
+            opt.dataset.qty     = '0';
+            opt.dataset.reorder = data.reorderLevel || '0';
+            opt.textContent = `${data.productName} (${data.categoryName}) – 0 in stock`;
+            productSelect.appendChild(opt);
+
+            this.reset();
+            closeModal('addProductModal');
+            showToast('Product added successfully!');
+        }
+        btn.disabled = false;
+    });
+
+    // ── Search filter ─────────────────────────────────────
+    function filterRows() {
+        const q = document.getElementById('searchInput').value.toLowerCase();
+        document.querySelectorAll('#productsTbody tr[id]').forEach(r => {
+            r.style.display = r.dataset.name?.includes(q) ? '' : 'none';
+        });
+    }
+</script>
+}

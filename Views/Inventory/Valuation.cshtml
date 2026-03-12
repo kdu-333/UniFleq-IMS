@@ -1,0 +1,263 @@
+﻿@model UnifleqSolutions_IMS.ViewModels.ValuationReportViewModel
+@{
+    ViewData["Title"] = "Inventory Valuation";
+    var printedBy = User.FindFirst("FullName")?.Value ?? User.Identity?.Name ?? "Unknown";
+}
+
+@section Styles {
+    <style>
+        @@media print {
+            #topbar, #sidebar, .section-header .export-btns,
+            .card-uni form, .btn-accent, .btn-ghost,
+            #sidebar-overlay {
+                display: none !important;
+            }
+
+            #sidebar {
+                display: none !important;
+            }
+
+            #main-wrapper {
+                margin-left: 0 !important;
+            }
+
+            #page-content {
+                padding: 0 !important;
+            }
+
+            body {
+                background: #fff !important;
+            }
+
+            .card-uni {
+                border: none !important;
+                box-shadow: none !important;
+            }
+
+            .print-header {
+                display: block !important;
+            }
+
+            .table-uni thead th,
+            .table-uni tbody td,
+            .table-uni tfoot td {
+                border: 1px solid #ccc !important;
+            }
+
+            .pct-bar {
+                display: none !important;
+            }
+        }
+
+        .print-header {
+            display: none;
+            text-align: center;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #d62a24;
+            padding-bottom: 16px;
+        }
+
+            .print-header h2 {
+                font-size: 20px;
+                font-weight: 700;
+                margin-bottom: 4px;
+            }
+
+            .print-header p {
+                font-size: 12px;
+                color: #555;
+                margin: 2px 0;
+            }
+
+        .print-meta {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #333;
+        }
+
+            .print-meta span strong {
+                color: #d62a24;
+            }
+    </style>
+}
+
+<!-- Print Header — only visible when printing -->
+<div class="print-header">
+    <h2>UniFleq IMS — Inventory Valuation Report</h2>
+    <div class="print-meta">
+        <span><strong>Generated:</strong> @DateTime.Now.ToString("MMMM dd, yyyy hh:mm tt")</span>
+        <span><strong>Printed by:</strong> @printedBy</span>
+        @if (Model.FilterCategoryID.HasValue)
+        {
+            <span><strong>Category:</strong> @(Model.Categories.FirstOrDefault(c => c.CategoryID == Model.FilterCategoryID)?.CategoryName ?? "All")</span>
+        }
+        else
+        {
+            <span><strong>Category:</strong> All Categories</span>
+        }
+    </div>
+</div>
+
+<div class="section-header mb-4">
+    <div>
+        <div class="section-title">Inventory Valuation Report</div>
+        <div style="color:var(--text-muted);font-size:12px;margin-top:4px">Total stock value across all products</div>
+    </div>
+    <div class="export-btns" style="display:flex;gap:8px">
+        <button onclick="exportExcel()" class="btn-ghost" style="font-size:13px">
+            <i class="bi bi-file-earmark-excel me-1" style="color:#22c55e"></i> Export Excel
+        </button>
+        <button onclick="window.print()" class="btn-ghost" style="font-size:13px">
+            <i class="bi bi-printer me-1"></i> Print / PDF
+        </button>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:rgba(34,197,94,0.15)">
+                <i class="bi bi-currency-dollar" style="color:#22c55e"></i>
+            </div>
+            <div>
+                <div class="kpi-label" style="color:#22c55e;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-bottom:4px">TOTAL INVENTORY VALUE</div>
+                <div style="color:#22c55e;font-size:20px;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:-0.5px;line-height:1.2">
+                    &#8369;@Model.TotalValue.ToString("N0")
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:rgba(108,99,255,0.15)">
+                <i class="bi bi-boxes" style="color:#8b85ff"></i>
+            </div>
+            <div>
+                <div class="kpi-label" style="font-size:11px;font-weight:600;letter-spacing:0.3px;margin-bottom:4px">TOTAL UNITS IN STOCK</div>
+                <div style="font-size:26px;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:-0.5px;line-height:1.2">@Model.TotalUnits</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card-uni mb-3">
+    <form method="get" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+        <div>
+            <label class="form-label-uni">Filter by Category</label>
+            <select name="categoryId" class="form-select-uni" style="width:200px">
+                <option value="">All Categories</option>
+                @foreach (var cat in Model.Categories)
+                {
+                    if (Model.FilterCategoryID == cat.CategoryID)
+                    {
+                        <option value="@cat.CategoryID" selected="selected">@cat.CategoryName</option>
+                    }
+                    else
+                    {
+                        <option value="@cat.CategoryID">@cat.CategoryName</option>
+                    }
+                }
+            </select>
+        </div>
+        <button type="submit" class="btn-accent"><i class="bi bi-funnel me-1"></i>Filter</button>
+        <a href="@Url.Action("Valuation")" class="btn-ghost">Clear</a>
+    </form>
+</div>
+
+<div class="card-uni" id="valuationTable">
+    <div style="overflow-x:auto">
+        <table class="table-uni" id="valTable">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Brand</th>
+                    <th>Category</th>
+                    <th>Unit Price</th>
+                    <th>Quantity</th>
+                    <th>Total Value</th>
+                    <th class="pct-bar">% of Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Items)
+                {
+                    var pct = Model.TotalValue > 0 ? (item.TotalValue / Model.TotalValue * 100) : 0;
+                    string brandDisplay = string.IsNullOrEmpty(item.Brand) ? "—" : item.Brand;
+                    <tr>
+                        <td style="font-weight:500">@item.ProductName</td>
+                        <td style="color:var(--text-secondary)">@brandDisplay</td>
+                        <td>@item.CategoryName</td>
+                        <td>&#8369;@item.UnitPrice.ToString("N2")</td>
+                        <td>@item.Quantity</td>
+                        <td style="font-weight:600;color:#22c55e">&#8369;@item.TotalValue.ToString("N2")</td>
+                        <td class="pct-bar">
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <div style="flex:1;height:4px;background:var(--border-color);border-radius:2px">
+                                    <div style="width:@pct.ToString("0.0")%;height:100%;background:var(--accent);border-radius:2px"></div>
+                                </div>
+                                <span style="font-size:11px;color:var(--text-muted);width:36px">@pct.ToString("0.0")%</span>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr style="border-top:2px solid var(--border-color)">
+                    <td colspan="4" style="font-weight:600;padding:12px 14px">TOTAL</td>
+                    <td style="font-weight:700;font-family:'DM Sans',sans-serif">@Model.TotalUnits</td>
+                    <td style="font-weight:700;color:#22c55e;font-size:18px;font-family:'DM Sans',sans-serif;letter-spacing:-0.5px">
+                        &#8369;@Model.TotalValue.ToString("N0")
+                    </td>
+                    <td class="pct-bar"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        const printedBy = "@printedBy";
+
+        function exportExcel() {
+            const wb   = XLSX.utils.book_new();
+            const rows = [];
+
+            rows.push(["UniFleq IMS — Inventory Valuation Report"]);
+            rows.push(["Generated: " + new Date().toLocaleString()]);
+            rows.push([]);
+            rows.push(["Product", "Brand", "Category", "Unit Price (PHP)", "Quantity", "Total Value (PHP)"]);
+
+            document.querySelectorAll('#valTable tbody tr').forEach(function(tr) {
+                const tds = tr.querySelectorAll('td');
+                rows.push([
+                    tds[0]?.innerText.trim() || '',
+                    tds[1]?.innerText.trim() || '',
+                    tds[2]?.innerText.trim() || '',
+                    tds[3]?.innerText.trim().replace('₱','').replace(/,/g,'') || '',
+                    tds[4]?.innerText.trim() || '',
+                    tds[5]?.innerText.trim().replace('₱','').replace(/,/g,'') || ''
+                ]);
+            });
+
+            rows.push([]);
+            rows.push(["TOTAL", "", "", "", "@Model.TotalUnits", "@Model.TotalValue.ToString("N2")"]);
+            rows.push([]);
+            rows.push(["Exported by: " + printedBy]);
+
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            ws['!cols'] = [
+                { wch: 35 }, { wch: 18 }, { wch: 18 },
+                { wch: 16 }, { wch: 12 }, { wch: 18 }
+            ];
+
+            XLSX.utils.book_append_sheet(wb, ws, "Valuation Report");
+            const fileName = "UniFleq_Valuation_" + new Date().toISOString().slice(0,10) + ".xlsx";
+            XLSX.writeFile(wb, fileName);
+        }
+    </script>
+}

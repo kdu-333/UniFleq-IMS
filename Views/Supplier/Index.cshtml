@@ -1,0 +1,261 @@
+@model UnifleqSolutions_IMS.ViewModels.SupplierViewModel
+@{
+    ViewData["Title"] = "Suppliers";
+}
+
+<div class="section-header mb-4">
+    <div>
+        <div class="section-title">Suppliers</div>
+        <div style="color:var(--text-muted);font-size:12px;margin-top:4px">Manage hardware suppliers</div>
+    </div>
+    @if (User.IsInRole("Admin") || User.IsInRole("InventoryManager") || User.IsInRole("ProcurementStaff"))
+    {
+        <button class="btn-accent" onclick="openModal('addSupModal')">
+            <i class="bi bi-plus-lg me-1"></i>Add Supplier
+        </button>
+    }
+</div>
+
+<div class="card-uni">
+    <div style="overflow-x:auto">
+        <table class="table-uni">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Supplier Name</th>
+                    <th>Contact</th>
+                    <th>Address</th>
+                    <th>Orders</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="supTbody">
+                @foreach (var s in Model.Suppliers)
+                {
+                    <tr id="sup-@s.SupplierID">
+                        <td style="color:var(--text-muted);font-size:12px">#@s.SupplierID</td>
+                        <td style="font-weight:500">@s.SupplierName</td>
+                        <td style="color:var(--text-secondary)">@(s.ContactNumber ?? "—")</td>
+                        <td style="color:var(--text-secondary)">@(s.Address ?? "—")</td>
+                        <td><span class="badge-uni badge-info">@s.PurchaseOrders.Count orders</span></td>
+                        <td>
+                            <div style="display:flex;gap:6px">
+                                <!-- Edit — Admin + InventoryManager + ProcurementStaff -->
+                                @if (User.IsInRole("Admin") || User.IsInRole("InventoryManager") || User.IsInRole("ProcurementStaff"))
+                                {
+                                    <button onclick="openEditModal(@s.SupplierID, '@s.SupplierName', '@(s.ContactNumber ?? "")', '@(s.Address ?? "")')"
+                                            class="btn-ghost" style="font-size:12px;padding:5px 10px" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                }
+
+                                <!-- Delete — Admin only, disabled if has orders -->
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    <button onclick="deleteSup(@s.SupplierID,'@s.SupplierName')"
+                                            class="btn-ghost"
+                                            style="font-size:12px;padding:5px 10px;color:#ef4444;border-color:rgba(239,68,68,0.3)"
+                                            title="Delete"
+                                    @(s.PurchaseOrders.Any() ? "disabled" : "")>
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ── Add Supplier Modal ── -->
+<div id="addSupModal" style="display:none;position:fixed;inset:0;z-index:1000;
+     background:rgba(0,0,0,0.7);align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+    <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:16px;
+                padding:32px;width:100%;max-width:440px;box-shadow:var(--shadow);margin:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+            <div class="section-title">Add Supplier</div>
+            <button onclick="closeModal('addSupModal')"
+                    style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <form id="supForm" method="post" action="@Url.Action("Create","Supplier")">
+            @Html.AntiForgeryToken()
+            <div class="mb-3">
+                <label class="form-label-uni">Supplier Name *</label>
+                <input name="SupplierName" class="form-control-uni" placeholder="e.g. TechWorld Distributors" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label-uni">Contact Number</label>
+                <input name="ContactNumber" class="form-control-uni" placeholder="e.g. 09171234567" />
+            </div>
+            <div class="mb-4">
+                <label class="form-label-uni">Address</label>
+                <textarea name="Address" class="form-control-uni" rows="2" placeholder="Full address"></textarea>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px">
+                <button type="button" onclick="closeModal('addSupModal')" class="btn-ghost">Cancel</button>
+                <button type="submit" class="btn-accent" id="saveSupBtn">
+                    <i class="bi bi-floppy me-1"></i>Save Supplier
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ── Edit Supplier Modal ── -->
+<div id="editSupModal" style="display:none;position:fixed;inset:0;z-index:1000;
+     background:rgba(0,0,0,0.7);align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+    <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:16px;
+                padding:32px;width:100%;max-width:440px;box-shadow:var(--shadow);margin:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+            <div class="section-title">Edit Supplier</div>
+            <button onclick="closeModal('editSupModal')"
+                    style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <form id="editSupForm" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" id="editSupID" name="id" value="" />
+            <div class="mb-3">
+                <label class="form-label-uni">Supplier Name *</label>
+                <input type="text" id="editSupName" name="supplierName" class="form-control-uni" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label-uni">Contact Number</label>
+                <input type="text" id="editSupContact" name="contactNumber" class="form-control-uni" />
+            </div>
+            <div class="mb-4">
+                <label class="form-label-uni">Address</label>
+                <textarea id="editSupAddress" name="address" class="form-control-uni" rows="2"></textarea>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px">
+                <button type="button" onclick="closeModal('editSupModal')" class="btn-ghost">Cancel</button>
+                <button type="submit" class="btn-accent" id="updateSupBtn">
+                    <i class="bi bi-floppy me-1"></i>Update Supplier
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function openModal(id)  { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        document.querySelectorAll('[id$="Modal"]').forEach(m => {
+            m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+        });
+
+        // ── Add Supplier ──
+        document.getElementById('supForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('saveSupBtn');
+            btn.disabled = true;
+
+            const fd  = new FormData(this);
+            const res = await fetch(this.action, { method: 'POST', body: fd });
+            const d   = await res.json();
+
+            if (d.success) {
+                const tbody = document.getElementById('supTbody');
+                const tr    = document.createElement('tr');
+                tr.id       = 'sup-' + d.supplierID;
+                tr.innerHTML = `
+                    <td style="color:var(--text-muted);font-size:12px">#${d.supplierID}</td>
+                    <td style="font-weight:500">${d.supplierName}</td>
+                    <td style="color:var(--text-secondary)">${d.contact || '—'}</td>
+                    <td style="color:var(--text-secondary)">${d.address || '—'}</td>
+                    <td><span class="badge-uni badge-info">0 orders</span></td>
+                    <td>
+                        <div style="display:flex;gap:6px">
+                            <button onclick="openEditModal(${d.supplierID}, '${d.supplierName}', '${d.contact || ''}', '${d.address || ''}')"
+                                    class="btn-ghost" style="font-size:12px;padding:5px 10px" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button onclick="deleteSup(${d.supplierID},'${d.supplierName}')"
+                                    class="btn-ghost" style="font-size:12px;padding:5px 10px;color:#ef4444;border-color:rgba(239,68,68,0.3)" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>`;
+                tbody.appendChild(tr);
+                this.reset();
+                closeModal('addSupModal');
+                showToast('Supplier added!');
+            }
+
+            btn.disabled = false;
+        });
+
+        // ── Open Edit Modal ──
+        function openEditModal(id, name, contact, address) {
+            document.getElementById('editSupID').value      = id;
+            document.getElementById('editSupName').value    = name;
+            document.getElementById('editSupContact').value = contact;
+            document.getElementById('editSupAddress').value = address;
+            openModal('editSupModal');
+        }
+
+        // ── Submit Edit ──
+        document.getElementById('editSupForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('updateSupBtn');
+            btn.disabled = true;
+
+            const fd    = new FormData(this);
+            const id    = document.getElementById('editSupID').value;
+            const token = fd.get('__RequestVerificationToken');
+
+            const res = await fetch(`/Supplier/Edit/${id}`, {
+                method:  'POST',
+                body:    fd,
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'RequestVerificationToken': token }
+            });
+
+            if (res.ok) {
+                const d   = await res.json();
+                const row = document.getElementById('sup-' + id);
+                if (row) {
+                    row.querySelector('td:nth-child(2)').textContent = d.supplierName;
+                    row.querySelector('td:nth-child(3)').textContent = d.contact  || '—';
+                    row.querySelector('td:nth-child(4)').textContent = d.address  || '—';
+                    const editBtn = row.querySelector('button[title="Edit"]');
+                    if (editBtn) {
+                        editBtn.setAttribute('onclick',
+                            `openEditModal(${d.supplierID}, '${d.supplierName}', '${d.contact || ''}', '${d.address || ''}')`);
+                    }
+                }
+                closeModal('editSupModal');
+                showToast(`Supplier "${d.supplierName}" updated!`);
+            } else {
+                const err = await res.text();
+                showToast(err || 'Update failed.', 'danger');
+            }
+
+            btn.disabled = false;
+        });
+
+        // ── Delete ──
+        async function deleteSup(id, name) {
+            if (!confirm(`Delete supplier "${name}"? This cannot be undone.`)) return;
+
+            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            const fd    = new FormData();
+            fd.append('__RequestVerificationToken', token);
+
+            const res = await fetch(`/Supplier/Delete/${id}`, { method: 'POST', body: fd });
+
+            if (res.ok) {
+                document.getElementById('sup-' + id)?.remove();
+                showToast(`Supplier "${name}" deleted.`);
+            } else {
+                showToast(await res.text(), 'danger');
+            }
+        }
+    </script>
+}

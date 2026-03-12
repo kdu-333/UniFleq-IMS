@@ -1,0 +1,356 @@
+@model UnifleqSolutions_IMS.ViewModels.ProductViewModel
+@{
+    ViewData["Title"] = "Products";
+}
+
+<!-- Add Product Button -->
+<div class="section-header mb-4">
+    <div>
+        <div class="section-title">Product Catalog</div>
+        <div style="color:var(--text-muted);font-size:12px;margin-top:4px">
+            Manage all hardware products and their details
+        </div>
+    </div>
+    <button class="btn-accent" onclick="openModal('addProductModal')">
+        <i class="bi bi-plus-lg me-1"></i> Add Product
+    </button>
+</div>
+
+<!-- Products Table -->
+<div class="card-uni">
+    <!-- Search bar -->
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <input type="text" id="searchInput" class="form-control-uni" placeholder="Search products..."
+               style="max-width:300px" oninput="filterTable()">
+        <select id="categoryFilter" class="form-select-uni" style="max-width:180px" onchange="filterTable()">
+            <option value="">All Categories</option>
+            @foreach (var cat in Model.Categories)
+            {
+                <option value="@cat.CategoryName">@cat.CategoryName</option>
+            }
+        </select>
+        <select id="statusFilter" class="form-select-uni" style="max-width:150px" onchange="filterTable()">
+            <option value="">All Status</option>
+            <option value="Available">Available</option>
+            <option value="Discontinued">Discontinued</option>
+            <option value="Archived">Archived</option>
+        </select>
+    </div>
+
+    <div style="overflow-x:auto">
+        <table class="table-uni" id="productsTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Product Name</th>
+                    <th>Brand</th>
+                    <th>Category</th>
+                    <th>Unit Price</th>
+                    <th>In Stock</th>
+                    <th>Reorder At</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="productsTbody">
+                @if (Model.Products.Any())
+                {
+                    @foreach (var p in Model.Products)
+                    {
+                        <tr id="row-@p.ProductID"
+                            data-name="@p.ProductName.ToLower()"
+                            data-category="@(p.Category?.CategoryName ?? "")"
+                            data-status="@p.Status">
+                            <td style="color:var(--text-muted);font-size:12px">#@p.ProductID</td>
+                            <td style="font-weight:500">@p.ProductName</td>
+                            <td style="color:var(--text-secondary)">@(p.Brand ?? "—")</td>
+                            <td><span class="badge-uni badge-purple">@(p.Category?.CategoryName ?? "—")</span></td>
+                            <td>₱@p.UnitPrice.ToString("N2")</td>
+                            <td>
+                                @{
+                                    var qty = p.Inventory?.Quantity ?? 0;
+                                    var reorder = p.ReorderLevel ?? 0;
+                                    var stockBadge = qty == 0 ? "badge-danger" : (reorder > 0 && qty <= reorder ? "badge-warning" : "badge-success");
+                                }
+                                <span class="badge-uni @stockBadge">@qty</span>
+                            </td>
+                            <td style="color:var(--text-muted)">@(p.ReorderLevel?.ToString() ?? "—")</td>
+                            <td>
+                                <span class="badge-uni @(p.Status == "Available" ? "badge-success" : p.Status == "Archived" ? "badge-warning" : "badge-muted")">
+                                    @p.Status
+                                </span>
+                            </td>
+                            <td>
+                                <div style="display:flex;gap:6px">
+                                    <!-- Edit -->
+                                    <a href="@Url.Action("Edit","Product",new{id=p.ProductID})"
+                                       class="btn-ghost" style="font-size:12px;padding:5px 10px"
+                                       title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+
+                                    <!-- Archive / Unarchive — Admin + InventoryManager -->
+                                    @if (User.IsInRole("Admin") || User.IsInRole("InventoryManager"))
+                                    {
+                                        <button onclick="archiveProduct(@p.ProductID, '@p.ProductName', '@p.Status')"
+                                                class="btn-ghost"
+                                                style="font-size:12px;padding:5px 10px;@(p.Status == "Archived" ? "border-color:rgba(34,197,94,0.3);color:#22c55e" : "border-color:rgba(245,158,11,0.3);color:#f59e0b")"
+                                                title="@(p.Status == "Archived" ? "Unarchive" : "Archive")">
+                                            <i class="bi @(p.Status == "Archived" ? "bi-arrow-counterclockwise" : "bi-archive")"></i>
+                                        </button>
+                                    }
+
+                                    <!-- Delete — Admin only -->
+                                    @if (User.IsInRole("Admin"))
+                                    {
+                                        <button onclick="deleteProduct(@p.ProductID, '@p.ProductName')"
+                                                class="btn-ghost"
+                                                style="font-size:12px;padding:5px 10px;border-color:rgba(239,68,68,0.3);color:#ef4444"
+                                                title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">
+                            No products found. Add your first product above.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ── Add Product Modal ── -->
+<div id="addProductModal" style="display:none;position:fixed;inset:0;z-index:1000;
+     background:rgba(0,0,0,0.7);align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+    <div style="background:var(--bg-card);border:1px solid var(--border-color);
+                border-radius:16px;padding:32px;width:100%;max-width:540px;box-shadow:var(--shadow);margin:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+            <div class="section-title">Add New Product</div>
+            <button onclick="closeModal('addProductModal')"
+                    style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <form id="productForm" method="post" action="@Url.Action("Create","Product")">
+            @Html.AntiForgeryToken()
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label-uni">Product Name *</label>
+                    <input asp-for="NewProduct.ProductName" class="form-control-uni" placeholder="e.g. Intel Core i9-13900K" required />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label-uni">Brand</label>
+                    <input asp-for="NewProduct.Brand" class="form-control-uni" placeholder="e.g. Intel" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label-uni">Category *</label>
+                    <select asp-for="NewProduct.CategoryID" class="form-select-uni" required>
+                        <option value="">-- Select --</option>
+                        @foreach (var cat in Model.Categories)
+                        {
+                            <option value="@cat.CategoryID">@cat.CategoryName</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label-uni">Unit Price (₱) *</label>
+                    <input asp-for="NewProduct.UnitPrice" type="number" step="0.01" min="0.01"
+                           class="form-control-uni" placeholder="0.00" required />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label-uni">Reorder Level</label>
+                    <input asp-for="NewProduct.ReorderLevel" type="number" min="0"
+                           class="form-control-uni" placeholder="e.g. 5" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label-uni">Status</label>
+                    <select asp-for="NewProduct.Status" class="form-select-uni">
+                        <option value="Available">Available</option>
+                        <option value="Discontinued">Discontinued</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:24px">
+                <button type="button" onclick="closeModal('addProductModal')" class="btn-ghost">Cancel</button>
+                <button type="submit" class="btn-accent" id="saveProductBtn">
+                    <i class="bi bi-floppy me-1"></i>Save Product
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // ── Modal helpers ──
+        function openModal(id)  { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        document.querySelectorAll('[id$="Modal"]').forEach(m => {
+            m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+        });
+
+        // ── AJAX Product Create ──
+        document.getElementById('productForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('saveProductBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Saving...';
+
+            try {
+                const fd    = new FormData(this);
+                const token = fd.get('__RequestVerificationToken');
+
+                const res = await fetch(this.action, {
+                    method: 'POST',
+                    body: fd,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'RequestVerificationToken': token }
+                });
+
+                if (!res.ok) {
+                    const txt = await res.text();
+                    showToast('Error: ' + txt, 'danger');
+                    return;
+                }
+
+                const data = await res.json();
+                if (!data.productID) { showToast('Unexpected response', 'danger'); return; }
+
+                const tbody = document.getElementById('productsTbody');
+                const noRow = tbody.querySelector('td[colspan]');
+                if (noRow) noRow.closest('tr').remove();
+
+                const tr = document.createElement('tr');
+                tr.id = 'row-' + data.productID;
+                tr.dataset.name     = data.productName.toLowerCase();
+                tr.dataset.category = data.categoryName || '';
+                tr.dataset.status   = data.status;
+                tr.innerHTML = `
+                    <td style="color:var(--text-muted);font-size:12px">#${data.productID}</td>
+                    <td style="font-weight:500">${data.productName}</td>
+                    <td style="color:var(--text-secondary)">${data.brand || '—'}</td>
+                    <td><span class="badge-uni badge-purple">${data.categoryName || '—'}</span></td>
+                    <td>₱${parseFloat(data.unitPrice).toFixed(2)}</td>
+                    <td><span class="badge-uni badge-success">0</span></td>
+                    <td style="color:var(--text-muted)">${data.reorderLevel ?? '—'}</td>
+                    <td><span class="badge-uni badge-success">${data.status}</span></td>
+                    <td>
+                        <div style="display:flex;gap:6px">
+                            <a href="/Product/Edit/${data.productID}" class="btn-ghost" style="font-size:12px;padding:5px 10px" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button onclick="archiveProduct(${data.productID}, '${data.productName}', '${data.status}')"
+                                    class="btn-ghost" style="font-size:12px;padding:5px 10px;border-color:rgba(245,158,11,0.3);color:#f59e0b" title="Archive">
+                                <i class="bi bi-archive"></i>
+                            </button>
+                        </div>
+                    </td>`;
+                tbody.prepend(tr);
+
+                this.reset();
+                closeModal('addProductModal');
+                showToast('Product "' + data.productName + '" added successfully!');
+
+            } catch (err) {
+                showToast('Something went wrong.', 'danger');
+                console.error(err);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-floppy me-1"></i>Save Product';
+            }
+        });
+
+        // ── Archive / Unarchive ──
+        async function archiveProduct(id, name, currentStatus) {
+            const isArchived = currentStatus === 'Archived';
+            const action     = isArchived ? 'Unarchive' : 'Archive';
+            if (!confirm(`${action} "${name}"?`)) return;
+
+            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            const res   = await fetch(`/Product/Archive/${id}`, {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': token, 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            if (res.ok) {
+                const data    = await res.json();
+                const newStatus = data.newStatus;
+                const row     = document.getElementById('row-' + id);
+                if (row) {
+                    // Update data-status
+                    row.dataset.status = newStatus;
+
+                    // Update status badge
+                    const statusBadge = row.querySelector('td:nth-child(8) .badge-uni');
+                    if (statusBadge) {
+                        statusBadge.textContent = newStatus;
+                        statusBadge.className   = 'badge-uni ' + (newStatus === 'Available' ? 'badge-success' : newStatus === 'Archived' ? 'badge-warning' : 'badge-muted');
+                    }
+
+                    // Update archive button
+                    const archiveBtn = row.querySelector('button[title="Archive"], button[title="Unarchive"]');
+                    if (archiveBtn) {
+                        if (newStatus === 'Archived') {
+                            archiveBtn.title               = 'Unarchive';
+                            archiveBtn.style.borderColor   = 'rgba(34,197,94,0.3)';
+                            archiveBtn.style.color         = '#22c55e';
+                            archiveBtn.innerHTML           = '<i class="bi bi-arrow-counterclockwise"></i>';
+                        } else {
+                            archiveBtn.title               = 'Archive';
+                            archiveBtn.style.borderColor   = 'rgba(245,158,11,0.3)';
+                            archiveBtn.style.color         = '#f59e0b';
+                            archiveBtn.innerHTML           = '<i class="bi bi-archive"></i>';
+                        }
+                    }
+                }
+                showToast(`Product "${name}" ${newStatus === 'Archived' ? 'archived' : 'unarchived'} successfully.`);
+            } else {
+                showToast('Action failed.', 'danger');
+            }
+        }
+
+        // ── Delete ──
+        async function deleteProduct(id, name) {
+            if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+
+            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            const res   = await fetch(`/Product/Delete/${id}`, {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': token, 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            if (res.ok) {
+                document.getElementById('row-' + id)?.remove();
+                showToast(`Product "${name}" deleted.`);
+            } else {
+                const txt = await res.text();
+                showToast(txt || 'Delete failed.', 'danger');
+            }
+        }
+
+        // ── Client-side filter ──
+        function filterTable() {
+            const search   = document.getElementById('searchInput').value.toLowerCase();
+            const category = document.getElementById('categoryFilter').value;
+            const status   = document.getElementById('statusFilter').value;
+
+            document.querySelectorAll('#productsTbody tr[id]').forEach(row => {
+                const match =
+                    (!search   || row.dataset.name.includes(search)) &&
+                    (!category || row.dataset.category === category) &&
+                    (!status   || row.dataset.status === status);
+                row.style.display = match ? '' : 'none';
+            });
+        }
+    </script>
+}

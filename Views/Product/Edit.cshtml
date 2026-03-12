@@ -1,0 +1,78 @@
+@model UnifleqSolutions_IMS.ViewModels.ProductEditViewModel
+@{
+    ViewData["Title"] = "Edit Product";
+}
+<div class="section-header mb-4">
+    <div class="section-title">Edit Product</div>
+    <a href="@Url.Action("Index")" class="btn-ghost">
+        <i class="bi bi-arrow-left me-1"></i>Back to Products
+    </a>
+</div>
+<div class="card-uni" style="max-width:640px">
+    <form method="post" action="/Product/Edit/@Model.Product.ProductID">
+        @Html.AntiForgeryToken()
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label class="form-label-uni">Product Name *</label>
+                <input type="text" name="productName"
+                       value="@Model.Product.ProductName"
+                       class="form-control-uni" required />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label-uni">Brand</label>
+                <input type="text" name="brand"
+                       value="@Model.Product.Brand"
+                       class="form-control-uni" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label-uni">Category *</label>
+                <select name="categoryID" class="form-select-uni" required>
+                    @foreach (var cat in Model.Categories)
+                    {
+                        if (cat.CategoryID == Model.Product.CategoryID)
+                        {
+                            <option value="@cat.CategoryID" selected="selected">@cat.CategoryName</option>
+                        }
+                        else
+                        {
+                            <option value="@cat.CategoryID">@cat.CategoryName</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label-uni">Unit Price (₱) *</label>
+                <input type="number" name="unitPrice" step="0.01" min="0.01"
+                       value="@Model.Product.UnitPrice"
+                       class="form-control-uni" required />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label-uni">Reorder Level</label>
+                <input type="number" name="reorderLevel" min="0"
+                       value="@Model.Product.ReorderLevel"
+                       class="form-control-uni" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label-uni">Status</label>
+                <select name="status" class="form-select-uni">
+                    @if (Model.Product.Status == "Available")
+                    {
+                        <option value="Available" selected="selected">Available</option>
+                        <option value="Discontinued">Discontinued</option>
+                    }
+                    else
+                    {
+                        <option value="Available">Available</option>
+                        <option value="Discontinued" selected="selected">Discontinued</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:24px">
+            <button type="submit" class="btn-accent">
+                <i class="bi bi-floppy me-1"></i>Save Changes
+            </button>
+            <a href="@Url.Action("Index")" class="btn-ghost">Cancel</a>
+        </div>
+    </form>
+</div>

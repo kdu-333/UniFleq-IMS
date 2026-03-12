@@ -1,0 +1,2 @@
+<!-- This file serves as reference for the remaining views -->
+<!-- Each view below should be saved to its own path -->

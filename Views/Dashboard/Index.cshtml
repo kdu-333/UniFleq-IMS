@@ -1,0 +1,373 @@
+﻿@model UnifleqSolutions_IMS.ViewModels.DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<!-- KPI Cards Row 1 -->
+<div class="row g-3 mb-3">
+    <div class="col-sm-6 col-xl-4">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:rgba(108,99,255,0.15)">
+                <i class="bi bi-cpu-fill" style="color:#8b85ff"></i>
+            </div>
+            <div>
+                <div class="kpi-label" style="font-size:11px;font-weight:600;letter-spacing:0.3px;margin-bottom:4px">TOTAL PRODUCTS</div>
+                <div style="font-size:26px;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:-0.5px;line-height:1.2">@Model.TotalProducts</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-4">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:rgba(56,189,248,0.15)">
+                <i class="bi bi-tag-fill" style="color:#38bdf8"></i>
+            </div>
+            <div>
+                <div class="kpi-label" style="font-size:11px;font-weight:600;letter-spacing:0.3px;margin-bottom:4px">CATEGORIES</div>
+                <div style="font-size:26px;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:-0.5px;line-height:1.2">@Model.TotalCategories</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-4">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:rgba(245,158,11,0.15)">
+                <i class="bi bi-exclamation-triangle-fill" style="color:#f59e0b"></i>
+            </div>
+            <div>
+                <div class="kpi-label" style="color:#f59e0b;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-bottom:4px">LOW STOCK ALERTS</div>
+                <div style="color:#f59e0b;font-size:26px;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:-0.5px;line-height:1.2">@Model.LowStockCount</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Cards Row 2 -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-4">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:rgba(34,197,94,0.15)">
+                <i class="bi bi-currency-dollar" style="color:#22c55e"></i>
+            </div>
+            <div>
+                <div class="kpi-label" style="color:#22c55e;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-bottom:4px">INVENTORY VALUE</div>
+                <div style="color:#22c55e;font-size:20px;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:-0.5px;line-height:1.2">
+                    &#8369;@Model.TotalInventoryValue.ToString("N0")
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-4">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:rgba(239,68,68,0.15)">
+                <i class="bi bi-cart-check-fill" style="color:#ef4444"></i>
+            </div>
+            <div>
+                <div class="kpi-label" style="color:#ef4444;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-bottom:4px">PENDING ORDERS</div>
+                <div style="color:#ef4444;font-size:26px;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:-0.5px;line-height:1.2">@Model.PendingOrdersCount</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-4">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:rgba(52,211,153,0.15)">
+                <i class="bi bi-activity" style="color:#34d399"></i>
+            </div>
+            <div>
+                <div class="kpi-label" style="color:#34d399;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-bottom:4px">TRANSACTIONS TODAY</div>
+                <div style="color:#34d399;font-size:26px;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:-0.5px;line-height:1.2">@Model.TotalTransactionsToday</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-3">
+    <!-- Doughnut: Stock by Category -->
+    <div class="col-lg-5">
+        <div class="card-uni" style="height:100%">
+            <div class="section-header">
+                <div class="section-title">Stock by Category</div>
+            </div>
+            <canvas id="categoryChart" height="240"></canvas>
+        </div>
+    </div>
+
+    <!-- Bar: Top 5 Most In-Demand Products -->
+    <div class="col-lg-7">
+        <div class="card-uni" style="height:100%">
+            <div class="section-header" style="flex-wrap:wrap;gap:10px">
+                <div class="section-title">
+                    <i class="bi bi-fire me-2" style="color:#ef4444"></i>
+                    Top 5 Most In-Demand Products
+                </div>
+                <!-- Date Filter Form -->
+                <form method="get" action="@Url.Action("Index","Dashboard")"
+                      style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:4px">
+                        <label style="font-size:11px;color:var(--text-muted);white-space:nowrap">From</label>
+                        <input type="date" name="demandFrom" class="form-control-uni"
+                               style="width:140px;font-size:12px;padding:5px 8px"
+                               value="@Model.DemandFilterFrom?.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div style="display:flex;align-items:center;gap:4px">
+                        <label style="font-size:11px;color:var(--text-muted);white-space:nowrap">To</label>
+                        <input type="date" name="demandTo" class="form-control-uni"
+                               style="width:140px;font-size:12px;padding:5px 8px"
+                               value="@Model.DemandFilterTo?.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <button type="submit" class="btn-accent" style="font-size:12px;padding:5px 12px">
+                        <i class="bi bi-funnel me-1"></i>Filter
+                    </button>
+                    @if (Model.DemandFilterFrom.HasValue || Model.DemandFilterTo.HasValue)
+                    {
+                        <a href="@Url.Action("Index","Dashboard")" class="btn-ghost"
+                           style="font-size:12px;padding:5px 10px">Clear</a>
+                    }
+                </form>
+            </div>
+
+            <!-- Active filter label -->
+            @if (Model.DemandFilterFrom.HasValue || Model.DemandFilterTo.HasValue)
+            {
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;padding:0 4px">
+                    <i class="bi bi-calendar-range me-1"></i>
+                    Showing:
+                    @(Model.DemandFilterFrom.HasValue ? Model.DemandFilterFrom.Value.ToString("MMM dd, yyyy") : "All time")
+                    —
+                    @(Model.DemandFilterTo.HasValue ? Model.DemandFilterTo.Value.ToString("MMM dd, yyyy") : "Today")
+                </div>
+            }
+
+            @if (Model.TopDemandItems.Any())
+            {
+                <canvas id="demandChart" height="220"></canvas>
+            }
+            else
+            {
+                <div style="text-align:center;padding:60px;color:var(--text-muted)">
+                    <i class="bi bi-bar-chart" style="font-size:32px;display:block;margin-bottom:8px"></i>
+                    No stock-out transactions found for this period.
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Low Stock Alerts -->
+<div class="card-uni mb-3">
+    <div class="section-header">
+        <div class="section-title">
+            <i class="bi bi-exclamation-triangle-fill me-2" style="color:#f59e0b"></i>
+            Low Stock Alerts
+        </div>
+        <a href="@Url.Action("Index","Inventory")?stockStatus=Low" class="btn-ghost" style="font-size:12px">
+            View All
+        </a>
+    </div>
+    @if (Model.LowStockItems.Any())
+    {
+        <div style="overflow-x:auto">
+            <table class="table-uni">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>In Stock</th>
+                        <th>Reorder At</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.LowStockItems)
+                    {
+                        <tr>
+                            <td style="font-weight:500">@item.ProductName</td>
+                            <td><span class="badge-uni badge-purple">@item.CategoryName</span></td>
+                            <td>
+                                <span class="@(item.Quantity == 0 ? "badge-uni badge-danger" : "badge-uni badge-warning")">
+                                    @item.Quantity units
+                                </span>
+                            </td>
+                            <td style="color:var(--text-muted)">@item.ReorderLevel</td>
+                            <td>
+                                <a href="@Url.Action("Index","StockAdjustment")"
+                                   class="btn-accent" style="font-size:11px;padding:5px 10px">
+                                    Restock
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div style="text-align:center;padding:40px;color:var(--text-muted)">
+            <i class="bi bi-check-circle" style="font-size:32px;color:#22c55e;display:block;margin-bottom:8px"></i>
+            All stock levels are healthy.
+        </div>
+    }
+</div>
+
+<!-- Recent Transactions -->
+<div class="card-uni">
+    <div class="section-header">
+        <div class="section-title">Recent Transactions</div>
+        <a href="@Url.Action("History","StockAdjustment")" class="btn-ghost" style="font-size:12px">View All</a>
+    </div>
+    @if (Model.RecentTransactions.Any())
+    {
+        <div style="overflow-x:auto">
+            <table class="table-uni">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Product</th>
+                        <th>Type</th>
+                        <th>Qty</th>
+                        <th>By</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var tx in Model.RecentTransactions)
+                    {
+                        <tr>
+                            <td style="color:var(--text-muted);font-size:12px">#@tx.TransactionID</td>
+                            <td style="font-weight:500">@tx.ProductName</td>
+                            <td>
+                                @{
+                                    var txBadge = tx.TransactionType switch
+                                    {
+                                        "Stock-In" => "badge-success",
+                                        "Stock-Out" => "badge-danger",
+                                        _ => "badge-info"
+                                    };
+                                }
+                                <span class="badge-uni @txBadge">@tx.TransactionType</span>
+                            </td>
+                            <td>@tx.Quantity</td>
+                            <td style="color:var(--text-secondary)">@tx.UserName</td>
+                            <td style="color:var(--text-muted);font-size:12px">
+                                @tx.TransactionDate.ToString("MMM dd, yyyy HH:mm")
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div style="text-align:center;padding:32px;color:var(--text-muted)">
+            No transactions recorded yet.
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        // ── Doughnut: Stock by Category ──
+        const cats   = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.CategoryStockSummary.Select(c => c.CategoryName)));
+        const qtys   = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.CategoryStockSummary.Select(c => c.TotalQuantity)));
+        const colors = ['#6c63ff','#38bdf8','#22c55e','#f59e0b','#ef4444','#a78bfa','#f472b6','#34d399'];
+
+        const ctx = document.getElementById('categoryChart')?.getContext('2d');
+        if (ctx && cats.length) {
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: cats,
+                    datasets: [{
+                        data: qtys,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                color: '#888888',
+                                font: { size: 12, family: 'DM Sans' },
+                                padding: 12,
+                                boxWidth: 12
+                            }
+                        },
+                        tooltip: {
+                            callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} units` }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        // ── Bar: Top 5 Most In-Demand Products ──
+        const demandLabels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.TopDemandItems.Select(x => x.ProductName)));
+        const demandData   = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.TopDemandItems.Select(x => x.StockOutCount)));
+
+        const demandCtx = document.getElementById('demandChart')?.getContext('2d');
+        if (demandCtx && demandLabels.length) {
+            new Chart(demandCtx, {
+                type: 'bar',
+                data: {
+                    labels: demandLabels,
+                    datasets: [{
+                        label: 'Units Stocked Out',
+                        data: demandData,
+                        backgroundColor: [
+                            'rgba(214,42,36,0.8)',
+                            'rgba(239,68,68,0.7)',
+                            'rgba(245,158,11,0.7)',
+                            'rgba(108,99,255,0.7)',
+                            'rgba(56,189,248,0.7)'
+                        ],
+                        borderColor: ['#d62a24','#ef4444','#f59e0b','#6c63ff','#38bdf8'],
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ` ${ctx.raw} units stocked out`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#888888',
+                                font: { size: 11, family: 'DM Sans' },
+                                stepSize: 1
+                            },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        y: {
+                            ticks: {
+                                color: '#555555',
+                                font: { size: 12, family: 'DM Sans' }
+                            },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+}

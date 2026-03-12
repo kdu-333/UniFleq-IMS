@@ -1,0 +1,79 @@
+﻿@model UnifleqSolutions_IMS.ViewModels.UserEditViewModel
+@{
+    ViewData["Title"] = "Edit User";
+}
+
+<div class="section-header mb-4">
+    <div class="section-title">Edit User</div>
+    <a href="@Url.Action("Index")" class="btn-ghost">
+        <i class="bi bi-arrow-left me-1"></i>Back to Users
+    </a>
+</div>
+
+<div class="card-uni" style="max-width:560px">
+    <form method="post" action="/User/Edit">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="UserID" value="@Model.UserID" />
+
+        <div class="row g-3">
+            <div class="col-md-12">
+                <label class="form-label-uni">Full Name *</label>
+                <input name="FullName" value="@Model.FullName"
+                       class="form-control-uni" required />
+            </div>
+
+            <div class="col-md-12">
+                <label class="form-label-uni">Username *</label>
+                <input name="Username" value="@Model.Username"
+                       class="form-control-uni" required />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label-uni">Role *</label>
+                <select name="RoleID" class="form-select-uni" required>
+                    @foreach (var role in Model.Roles)
+                    {
+                        if (role.RoleID == Model.RoleID)
+                        {
+                            <option value="@role.RoleID" selected="selected">@role.RoleName</option>
+                        }
+                        else
+                        {
+                            <option value="@role.RoleID">@role.RoleName</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label-uni">Status *</label>
+                <select name="Status" class="form-select-uni" required>
+                    @if (Model.Status == "Active")
+                    {
+                        <option value="Active" selected="selected">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    }
+                    else
+                    {
+                        <option value="Active">Active</option>
+                        <option value="Inactive" selected="selected">Inactive</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-12">
+                <label class="form-label-uni">New Password <span style="color:var(--text-muted);font-weight:400">(leave blank to keep current)</span></label>
+                <input type="password" name="NewPassword"
+                       class="form-control-uni"
+                       placeholder="Enter new password to change it" />
+            </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:24px">
+            <button type="submit" class="btn-accent">
+                <i class="bi bi-floppy me-1"></i>Save Changes
+            </button>
+            <a href="@Url.Action("Index")" class="btn-ghost">Cancel</a>
+        </div>
+    </form>
+</div>

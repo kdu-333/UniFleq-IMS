@@ -1,0 +1,252 @@
+@model UnifleqSolutions_IMS.ViewModels.CategoryViewModel
+@{
+    ViewData["Title"] = "Categories";
+}
+
+<div class="section-header mb-4">
+    <div>
+        <div class="section-title">Product Categories</div>
+        <div style="color:var(--text-muted);font-size:12px;margin-top:4px">Manage hardware component categories</div>
+    </div>
+    @if (User.IsInRole("Admin") || User.IsInRole("InventoryManager"))
+    {
+        <button class="btn-accent" onclick="openModal('addCatModal')">
+            <i class="bi bi-plus-lg me-1"></i>Add Category
+        </button>
+    }
+</div>
+
+<div class="card-uni">
+    <div style="overflow-x:auto">
+        <table class="table-uni">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Products</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="catTbody">
+                @foreach (var cat in Model.Categories)
+                {
+                    <tr id="cat-@cat.CategoryID">
+                        <td style="color:var(--text-muted);font-size:12px">#@cat.CategoryID</td>
+                        <td style="font-weight:500">@cat.CategoryName</td>
+                        <td style="color:var(--text-secondary)">@(cat.Description ?? "—")</td>
+                        <td><span class="badge-uni badge-purple">@cat.Products.Count products</span></td>
+                        <td>
+                            <div style="display:flex;gap:6px">
+                                <!-- Edit — Admin + InventoryManager -->
+                                @if (User.IsInRole("Admin") || User.IsInRole("InventoryManager"))
+                                {
+                                    <button onclick="openEditModal(@cat.CategoryID, '@cat.CategoryName', '@(cat.Description ?? "")')"
+                                            class="btn-ghost" style="font-size:12px;padding:5px 10px" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                }
+
+                                <!-- Delete — Admin only, only if no products -->
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    <button onclick="deleteCat(@cat.CategoryID,'@cat.CategoryName')"
+                                            class="btn-ghost"
+                                            style="font-size:12px;padding:5px 10px;color:#ef4444;border-color:rgba(239,68,68,0.3)"
+                                            title="Delete"
+                                    @(cat.Products.Count > 0 ? "disabled" : "")>
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ── Add Category Modal ── -->
+<div id="addCatModal" style="display:none;position:fixed;inset:0;z-index:1000;
+     background:rgba(0,0,0,0.7);align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+    <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:16px;
+                padding:32px;width:100%;max-width:420px;box-shadow:var(--shadow);margin:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+            <div class="section-title">Add Category</div>
+            <button onclick="closeModal('addCatModal')"
+                    style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <form id="catForm" method="post" action="@Url.Action("Create","Category")">
+            @Html.AntiForgeryToken()
+            <div class="mb-3">
+                <label class="form-label-uni">Category Name *</label>
+                <input type="text" name="CategoryName" class="form-control-uni" placeholder="e.g. GPU" required />
+            </div>
+            <div class="mb-4">
+                <label class="form-label-uni">Description</label>
+                <textarea name="Description" class="form-control-uni" rows="2" placeholder="Optional description"></textarea>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px">
+                <button type="button" onclick="closeModal('addCatModal')" class="btn-ghost">Cancel</button>
+                <button type="submit" class="btn-accent" id="saveCatBtn">
+                    <i class="bi bi-floppy me-1"></i>Save Category
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ── Edit Category Modal ── -->
+<div id="editCatModal" style="display:none;position:fixed;inset:0;z-index:1000;
+     background:rgba(0,0,0,0.7);align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+    <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:16px;
+                padding:32px;width:100%;max-width:420px;box-shadow:var(--shadow);margin:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+            <div class="section-title">Edit Category</div>
+            <button onclick="closeModal('editCatModal')"
+                    style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <form id="editCatForm" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" id="editCatID" name="id" value="" />
+            <div class="mb-3">
+                <label class="form-label-uni">Category Name *</label>
+                <input type="text" id="editCatName" name="categoryName" class="form-control-uni" required />
+            </div>
+            <div class="mb-4">
+                <label class="form-label-uni">Description</label>
+                <textarea id="editCatDesc" name="description" class="form-control-uni" rows="2"></textarea>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px">
+                <button type="button" onclick="closeModal('editCatModal')" class="btn-ghost">Cancel</button>
+                <button type="submit" class="btn-accent" id="updateCatBtn">
+                    <i class="bi bi-floppy me-1"></i>Update Category
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function openModal(id)  { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        // Close on backdrop click
+        document.querySelectorAll('[id$="Modal"]').forEach(m => {
+            m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+        });
+
+        // ── Add Category ──
+        document.getElementById('catForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('saveCatBtn');
+            btn.disabled = true;
+
+            const fd  = new FormData(this);
+            const res = await fetch(this.action, { method: 'POST', body: fd });
+            const d   = await res.json();
+
+            if (d.success) {
+                const tbody = document.getElementById('catTbody');
+                const tr    = document.createElement('tr');
+                tr.id       = 'cat-' + d.categoryID;
+                tr.innerHTML = `
+                    <td style="color:var(--text-muted);font-size:12px">#${d.categoryID}</td>
+                    <td style="font-weight:500">${d.categoryName}</td>
+                    <td style="color:var(--text-secondary)">${d.description || '—'}</td>
+                    <td><span class="badge-uni badge-purple">0 products</span></td>
+                    <td>
+                        <div style="display:flex;gap:6px">
+                            <button onclick="openEditModal(${d.categoryID}, '${d.categoryName}', '${d.description || ''}')"
+                                    class="btn-ghost" style="font-size:12px;padding:5px 10px" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button onclick="deleteCat(${d.categoryID},'${d.categoryName}')"
+                                    class="btn-ghost" style="font-size:12px;padding:5px 10px;color:#ef4444;border-color:rgba(239,68,68,0.3)" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>`;
+                tbody.appendChild(tr);
+                this.reset();
+                closeModal('addCatModal');
+                showToast('Category added!');
+            }
+
+            btn.disabled = false;
+        });
+
+        // ── Open Edit Modal ──
+        function openEditModal(id, name, description) {
+            document.getElementById('editCatID').value   = id;
+            document.getElementById('editCatName').value = name;
+            document.getElementById('editCatDesc').value = description;
+            document.getElementById('editCatForm').action = `/Category/Edit/${id}`;
+            openModal('editCatModal');
+        }
+
+        // ── Submit Edit ──
+        document.getElementById('editCatForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('updateCatBtn');
+            btn.disabled = true;
+
+            const fd    = new FormData(this);
+            const id    = document.getElementById('editCatID').value;
+            const token = fd.get('__RequestVerificationToken');
+
+            const res = await fetch(`/Category/Edit/${id}`, {
+                method:  'POST',
+                body:    fd,
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'RequestVerificationToken': token }
+            });
+
+            if (res.ok) {
+                const d   = await res.json();
+                const row = document.getElementById('cat-' + id);
+                if (row) {
+                    row.querySelector('td:nth-child(2)').textContent = d.categoryName;
+                    row.querySelector('td:nth-child(3)').textContent = d.description || '—';
+                    // Update onclick for edit button with new values
+                    const editBtn = row.querySelector('button[title="Edit"]');
+                    if (editBtn) {
+                        editBtn.setAttribute('onclick',
+                            `openEditModal(${d.categoryID}, '${d.categoryName}', '${d.description || ''}')`);
+                    }
+                }
+                closeModal('editCatModal');
+                showToast(`Category "${d.categoryName}" updated!`);
+            } else {
+                const err = await res.text();
+                showToast(err || 'Update failed.', 'danger');
+            }
+
+            btn.disabled = false;
+        });
+
+        // ── Delete Category ──
+        async function deleteCat(id, name) {
+            if (!confirm(`Delete category "${name}"? This cannot be undone.`)) return;
+
+            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            const res   = await fetch(`/Category/Delete/${id}`, {
+                method:  'POST',
+                headers: { 'RequestVerificationToken': token }
+            });
+
+            if (res.ok) {
+                document.getElementById('cat-' + id)?.remove();
+                showToast(`Category "${name}" deleted.`);
+            } else {
+                const err = await res.text();
+                showToast(err || 'Delete failed.', 'danger');
+            }
+        }
+    </script>
+}

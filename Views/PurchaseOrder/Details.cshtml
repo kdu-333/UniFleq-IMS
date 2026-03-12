@@ -1,0 +1,130 @@
+﻿@model UnifleqSolutions_IMS.ViewModels.PurchaseOrderDetailViewModel
+@{
+    ViewData["Title"] = "PO #" + Model.Order.POID + " Details";
+}
+
+<div class="section-header mb-4">
+    <div class="section-title">Purchase Order #@Model.Order.POID</div>
+    <a href="@Url.Action("Index")" class="btn-ghost">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert-uni alert-success mb-3">@TempData["Success"]</div>
+}
+
+<div class="card-uni mb-4" style="max-width:700px">
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="form-label-uni">Supplier</div>
+            <div><strong>@Model.Order.Supplier?.SupplierName</strong></div>
+        </div>
+        <div class="col-md-6">
+            <div class="form-label-uni">Created By</div>
+            <div>@Model.Order.User?.FullName</div>
+        </div>
+        <div class="col-md-6">
+            <div class="form-label-uni">Order Date</div>
+            <div>@Model.Order.OrderDate.ToString("MMM dd, yyyy hh:mm tt")</div>
+        </div>
+        <div class="col-md-6">
+            <div class="form-label-uni">Status</div>
+            <div>
+                @if (Model.Order.Status == "Pending")
+                {
+                    <span class="badge-uni badge-warning">Pending</span>
+                }
+                else if (Model.Order.Status == "Received")
+                {
+                    <span class="badge-uni badge-success">Received</span>
+                }
+                else if (Model.Order.Status == "Cancelled")
+                {
+                    <span class="badge-uni badge-danger">Cancelled</span>
+                }
+                else
+                {
+                    <span class="badge-uni badge-muted">@Model.Order.Status</span>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card-uni mb-4" style="max-width:700px">
+    <div style="font-weight:600;margin-bottom:12px">Line Items</div>
+    <table class="table-uni">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Unit Cost</th>
+                <th>Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var d in Model.Details)
+            {
+                <tr>
+                    <td>@d.Product?.ProductName</td>
+                    <td>@d.Quantity</td>
+                    <td>&#8369;@d.UnitCost.ToString("N2")</td>
+                    <td>&#8369;@((d.Quantity * d.UnitCost).ToString("N2"))</td>
+                </tr>
+            }
+        </tbody>
+        <tfoot>
+            <tr style="border-top:2px solid var(--border-color)">
+                <td colspan="3" style="font-weight:600;padding:12px 14px">Total</td>
+                <td style="font-weight:700;color:#22c55e;font-size:16px">&#8369;@Model.TotalCost.ToString("N2")</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+<!-- Action Buttons — only for Pending orders -->
+@if (Model.Order.Status == "Pending")
+{
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <!-- Mark as Received -->
+        @if (User.IsInRole("Admin") || User.IsInRole("ProcurementStaff") || User.IsInRole("InventoryManager"))
+        {
+            <form method="post" action="/PurchaseOrder/Receive/@Model.Order.POID" style="margin:0"
+                  onsubmit="return confirm('Mark PO #@Model.Order.POID as Received? This will update inventory quantities.')">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn-accent">
+                    <i class="bi bi-check-circle me-1"></i>Mark as Received
+                </button>
+            </form>
+        }
+
+        <!-- Cancel PO -->
+        @if (User.IsInRole("Admin") || User.IsInRole("ProcurementStaff"))
+        {
+            <form method="post" action="/PurchaseOrder/Cancel/@Model.Order.POID" style="margin:0"
+                  onsubmit="return confirm('Cancel PO #@Model.Order.POID? This cannot be undone.')">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn-ghost"
+                        style="color:#ef4444;border-color:rgba(239,68,68,0.3)">
+                    <i class="bi bi-x-circle me-1"></i>Cancel Order
+                </button>
+            </form>
+        }
+    </div>
+}
+else if (Model.Order.Status == "Cancelled")
+{
+    <div style="padding:14px 18px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);
+                border-radius:8px;color:#ef4444;font-size:13px;max-width:700px">
+        <i class="bi bi-x-circle me-2"></i>This purchase order has been cancelled and cannot be modified.
+    </div>
+}
+else if (Model.Order.Status == "Received")
+{
+    <div style="padding:14px 18px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);
+                border-radius:8px;color:#22c55e;font-size:13px;max-width:700px">
+        <i class="bi bi-check-circle me-2"></i>This purchase order has been received and inventory has been updated.
+    </div>
+}

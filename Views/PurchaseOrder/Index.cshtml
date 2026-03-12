@@ -1,0 +1,113 @@
+﻿@model UnifleqSolutions_IMS.ViewModels.PurchaseOrderViewModel
+@{
+    ViewData["Title"] = "Purchase Orders";
+}
+
+<div class="section-header mb-4">
+    <div class="section-title">Purchase Orders</div>
+    @if (User.IsInRole("Admin") || User.IsInRole("ProcurementStaff"))
+    {
+        <a href="@Url.Action("Create")" class="btn-accent">
+            <i class="bi bi-plus-lg me-1"></i>New Purchase Order
+        </a>
+    }
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert-uni alert-success mb-3">@TempData["Success"]</div>
+}
+
+<div class="card-uni mb-4">
+    <form method="get" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <select name="status" class="form-select-uni" style="width:180px">
+            <option value="">All Statuses</option>
+            @foreach (var s in new[] { "Pending", "Received", "Cancelled" })
+            {
+                if (Model.FilterStatus == s)
+                {
+                    <option value="@s" selected="selected">@s</option>
+                }
+                else
+                {
+                    <option value="@s">@s</option>
+                }
+            }
+        </select>
+        <button type="submit" class="btn-accent"><i class="bi bi-funnel me-1"></i>Filter</button>
+        <a href="@Url.Action("Index")" class="btn-ghost">Clear</a>
+    </form>
+</div>
+
+<div class="card-uni">
+    <table class="table-uni">
+        <thead>
+            <tr>
+                <th>PO #</th>
+                <th>Supplier</th>
+                <th>Created By</th>
+                <th>Order Date</th>
+                <th>Items</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Orders.Any())
+            {
+                <tr>
+                    <td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">
+                        No purchase orders found.
+                    </td>
+                </tr>
+            }
+            @foreach (var po in Model.Orders)
+            {
+                <tr>
+                    <td><strong>#@po.POID</strong></td>
+                    <td>@po.Supplier?.SupplierName</td>
+                    <td>@po.User?.FullName</td>
+                    <td>@po.OrderDate.ToString("MMM dd, yyyy")</td>
+                    <td>@po.PurchaseOrderDetails.Count item(s)</td>
+                    <td>
+                        @if (po.Status == "Pending")
+                        {
+                            <span class="badge-uni badge-warning">Pending</span>
+                        }
+                        else if (po.Status == "Received")
+                        {
+                            <span class="badge-uni badge-success">Received</span>
+                        }
+                        else if (po.Status == "Cancelled")
+                        {
+                            <span class="badge-uni badge-danger">Cancelled</span>
+                        }
+                        else
+                        {
+                            <span class="badge-uni badge-muted">@po.Status</span>
+                        }
+                    </td>
+                    <td>
+                        <div style="display:flex;gap:6px">
+                            <a href="@Url.Action("Details", new { id = po.POID })"
+                               class="btn-ghost" style="font-size:12px;padding:5px 10px">
+                                <i class="bi bi-eye me-1"></i>View
+                            </a>
+                            @if (po.Status == "Pending" && (User.IsInRole("Admin") || User.IsInRole("ProcurementStaff")))
+                            {
+                                <form method="post" action="/PurchaseOrder/Cancel/@po.POID" style="margin:0"
+                                      onsubmit="return confirm('Cancel PO #@po.POID? This cannot be undone.')">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn-ghost"
+                                            style="font-size:12px;padding:5px 10px;color:#ef4444;border-color:rgba(239,68,68,0.3)">
+                                        <i class="bi bi-x-circle me-1"></i>Cancel
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,12 @@
+﻿@"
+bin/
+obj/
+.vs/
+*.user
+*.suo
+.idea/
+.DS_Store
+Thumbs.db
+appsettings.json
+appsettings.*.json
+"@ | Out-File -FilePath .gitignore -Encoding utf8
